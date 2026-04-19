@@ -117,4 +117,28 @@ router.get('/all-transactions', verifyAdmin, async (req, res) => {
     }
   });
 
+  // 6. DELETE a parking lot and its spots
+  router.get('/lots/:lotId', verifyAdmin, async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const { lotId } = req.params;
+      await client.query('BEGIN');
+
+      // First, delete the spots associated with this lot
+      await client.query("DELETE FROM spots WHERE lot_id = $1", [lotId]);
+      
+      // Then, delete the lot itself
+      await client.query("DELETE FROM lots WHERE lot_id = $1", [lotId]);
+
+      await client.query('COMMIT');
+      res.json({ message: "Parking lot and all associated spots deleted successfully" });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error(err.message);
+      res.status(500).send("Server Error: Check if lot has active reservations");
+    } finally {
+      client.release();
+    }
+  });
+
 module.exports = router;
