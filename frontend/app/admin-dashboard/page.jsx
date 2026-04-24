@@ -94,6 +94,44 @@ export default function AdminDashboard() {
     }
   };
 
+  const lotHeatData = lots
+    .map((lot) => {
+      const totalSpots = Number(lot.max_spots) || 0;
+      const occupiedSpots = Number(lot.occupied_spots) || 0;
+      const occupancyPercent = totalSpots > 0 ? Math.min(100, Math.round((occupiedSpots / totalSpots) * 100)) : 0;
+      return { ...lot, totalSpots, occupiedSpots, occupancyPercent };
+    })
+    .sort((a, b) => b.occupancyPercent - a.occupancyPercent);
+
+  const getHeatTone = (occupancyPercent) => {
+    if (occupancyPercent >= 85) {
+      return {
+        card: 'bg-rose-50 border-rose-200',
+        pill: 'bg-rose-600 text-white',
+        progress: 'from-rose-500 to-red-600'
+      };
+    }
+    if (occupancyPercent >= 60) {
+      return {
+        card: 'bg-orange-50 border-orange-200',
+        pill: 'bg-orange-500 text-white',
+        progress: 'from-orange-400 to-amber-500'
+      };
+    }
+    if (occupancyPercent >= 35) {
+      return {
+        card: 'bg-amber-50 border-amber-200',
+        pill: 'bg-amber-500 text-white',
+        progress: 'from-amber-400 to-yellow-500'
+      };
+    }
+    return {
+      card: 'bg-blue-50 border-blue-200',
+      pill: 'bg-blue-500 text-white',
+      progress: 'from-blue-400 to-cyan-500'
+    };
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] text-gray-900 pb-20 font-sans relative selection:bg-blue-600 selection:text-white transition-colors duration-300">
       {/* Decorative top background */}
@@ -243,6 +281,53 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Occupancy Heatmap */}
+        <div className="bg-white p-5 sm:p-7 rounded-2xl sm:rounded-[2rem] border border-gray-200 mb-8 sm:mb-10 shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 sm:mb-6">
+            <div>
+              <h2 className="text-lg sm:text-xl font-extrabold text-gray-900">Live Occupancy Heatmap</h2>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">Heat is based on occupied spots vs total spots per lot.</p>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-wider">
+              <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200">Low</span>
+              <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Medium</span>
+              <span className="px-2 py-1 rounded-full bg-orange-50 text-orange-600 border border-orange-200">High</span>
+              <span className="px-2 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200">Critical</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+            {lotHeatData.map((lot) => {
+              const heatTone = getHeatTone(lot.occupancyPercent);
+              return (
+                <div key={lot.lot_id} className={`rounded-2xl border p-4 sm:p-5 ${heatTone.card}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm sm:text-base font-extrabold text-gray-900">{lot.prime_loc}</p>
+                      <p className="text-[10px] sm:text-xs font-semibold text-gray-500 mt-1">PIN {lot.pincode}</p>
+                    </div>
+                    <span className={`text-[10px] sm:text-xs font-black px-2.5 py-1 rounded-full ${heatTone.pill}`}>
+                      {lot.occupancyPercent}%
+                    </span>
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="w-full h-2.5 rounded-full bg-white/80 border border-white/90 overflow-hidden">
+                      <div
+                        className={`h-full bg-gradient-to-r ${heatTone.progress} transition-all duration-500`}
+                        style={{ width: `${lot.occupancyPercent}%` }}
+                      ></div>
+                    </div>
+                    <p className="mt-2 text-[11px] sm:text-xs font-bold text-gray-600">
+                      {lot.occupiedSpots} occupied / {lot.totalSpots} total spots
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
