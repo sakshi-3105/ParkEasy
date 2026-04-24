@@ -29,7 +29,11 @@ router.get('/my-bookings/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const activeBookings = await pool.query(
-      "SELECT * FROM reservations WHERE user_id = $1 AND is_ongoing = true",
+      `SELECT r.*, l.prime_loc
+       FROM reservations r
+       JOIN lots l ON r.lot_id = l.lot_id
+       WHERE r.user_id = $1 AND r.is_ongoing = true
+       ORDER BY r.start_time DESC`,
       [userId]
     );
     res.json(activeBookings.rows);
@@ -83,12 +87,28 @@ router.put('/checkout-confirm/:reserve_id', async (req, res) => {
     const { payment_id, amount } = req.body;
     await client.query('BEGIN');
 
-    const data = await client.query("SELECT spot_id FROM reservations WHERE reserve_id = $1", [reserve_id]);
+    const data = await client.query(
+      `SELECT r.reserve_id, r.spot_id, r.vehicle_num, r.start_time, r.price_per_hr, r.lot_id, l.prime_loc
+       FROM reservations r
+       JOIN lots l ON r.lot_id = l.lot_id
+       WHERE r.reserve_id = $1`,
+      [reserve_id]
+    );
     if (data.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: "Reservation not found" });
     }
-    const spotId = data.rows[0].spot_id;
+    const reservation = data.rows[0];
+    const spotId = reservation.spot_id;
+    const exitTime = new Date();
+    const entryTime = new Date(reservation.start_time);
+    const durationMinutes = Math.max(1, Math.ceil((exitTime - entryTime) / (1000 * 60)));
+    const durationHoursForBilling = Math.max(1, Math.ceil(durationMinutes / 60));
+    const subtotal = Number(reservation.price_per_hr) * durationHoursForBilling;
+    const gstPercent = 0;
+    const gstAmount = Number((subtotal * gstPercent / 100).toFixed(2));
+    const totalAmount = Number(amount);
+    const receiptNumber = `PE-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
     // 1. Free the spot
     await client.query("UPDATE spots SET status = 'a' WHERE spot_id = $1", [spotId]);
@@ -141,7 +161,43 @@ router.put('/checkout-confirm/:reserve_id', async (req, res) => {
     );
 
     await client.query('COMMIT');
-    res.json({ message: "Checkout complete" });
+    res.json({
+      message: "Checkout complete",
+      receipt: {
+        company: {
+          name: "ParkEasy Pune",
+          tagline: "Smart parking, stress-free arrivals.",
+          supportEmail: "support@parkeasy.in",
+          helpline: "+91-99999-00000"
+        },
+        receiptNumber,
+        issuedAt: exitTime.toISOString(),
+        parkingDetails: {
+          locationName: reservation.prime_loc,
+          spotNumber: `P-${reservation.spot_id}`,
+          vehicleNumber: reservation.vehicle_num,
+          reservationId: reservation.reserve_id
+        },
+        timeLog: {
+          entryTime: entryTime.toISOString(),
+          exitTime: exitTime.toISOString(),
+          totalDurationMinutes: durationMinutes
+        },
+        billing: {
+          ratePerHour: Number(reservation.price_per_hr),
+          subtotal,
+          gstPercent,
+          gstAmount,
+          totalAmount,
+          paymentMethod: "Online (Razorpay)",
+          transactionId: payment_id
+        },
+        footer: {
+          thankYouNote: "Thank you for parking with ParkEasy Pune!",
+          disclaimer: "This is a computer-generated receipt."
+        }
+      }
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error("Checkout confirm error:", err);

@@ -10,6 +10,7 @@ export default function AdminDashboard() {
   const [payments, setPayments] = useState([]);
   const [transactions, setTransactions] = useState([]); 
   const [allUsers, setAllUsers] = useState([]); 
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [formData, setFormData] = useState({
     prime_loc: '',
     address: '',
@@ -156,6 +157,66 @@ export default function AdminDashboard() {
           </button>
         </header>
 
+        <nav className="mb-6 sm:mb-8 bg-white/90 backdrop-blur-md border border-gray-200 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 shadow-sm sticky top-3 z-20">
+          <div className="hidden md:flex items-center gap-3">
+            {[
+              { href: '#add-new-lot', label: 'Add New Lot' },
+              { href: '#operational-networks', label: 'Operational Networks' },
+              { href: '#live-occupancy-heatmap', label: 'Occupancy Heatmap' },
+              { href: '#master-audit-log', label: 'Master Audit Log' }
+            ].map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-bold text-gray-600 bg-gradient-to-b from-white to-gray-50 border border-gray-200 hover:from-blue-600 hover:to-blue-700 hover:text-white hover:border-blue-600 transition-all shadow-[0_2px_8px_rgba(15,23,42,0.05)]"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMobileNavOpen((prev) => !prev)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-gradient-to-b from-white to-gray-50 border border-gray-200 text-gray-700 font-bold text-sm"
+            >
+              <span>Navigation</span>
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600">
+                {isMobileNavOpen ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                  </svg>
+                )}
+              </span>
+            </button>
+
+            {isMobileNavOpen && (
+              <div className="mt-2 p-2 rounded-xl border border-gray-200 bg-white/95 shadow-lg space-y-2">
+                {[
+                  { href: '#add-new-lot', label: 'Add New Lot' },
+                  { href: '#operational-networks', label: 'Operational Networks' },
+                  { href: '#live-occupancy-heatmap', label: 'Occupancy Heatmap' },
+                  { href: '#master-audit-log', label: 'Master Audit Log' }
+                ].map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsMobileNavOpen(false)}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-bold text-gray-700 bg-gray-50 border border-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all"
+                  >
+                    <span>{item.label}</span>
+                    <span aria-hidden="true">→</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </nav>
+
         {/* --- STATS CARDS --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-10">
           <div className="bg-gradient-to-tr from-green-500 to-emerald-400 border border-green-400 text-white p-5 sm:p-6 rounded-2xl sm:rounded-3xl shadow-[0_10px_25px_-5px_rgba(16,185,129,0.3)] relative overflow-hidden group">
@@ -188,7 +249,7 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-8 sm:mb-10">
           {/* Form to Add Lot */}
-          <div className="bg-white p-5 sm:p-8 rounded-2xl sm:rounded-[2rem] border border-gray-200 h-fit lg:sticky lg:top-[30px] shadow-sm">
+          <div id="add-new-lot" className="bg-white p-5 sm:p-8 rounded-2xl sm:rounded-[2rem] border border-gray-200 h-fit lg:sticky lg:top-[30px] shadow-sm scroll-mt-28">
             <h2 className="text-lg sm:text-xl font-extrabold mb-5 sm:mb-6 text-gray-900 border-b border-gray-100 pb-4">Add Parking Lot</h2>
             <form onSubmit={handleAddLot} className="space-y-4">
               <div className="space-y-1.5">
@@ -231,7 +292,7 @@ export default function AdminDashboard() {
 
           <div className="lg:col-span-2 space-y-6 sm:space-y-8">
             {/* Operational Lots Table */}
-            <div className="bg-white p-1 rounded-2xl sm:rounded-[2rem] border border-gray-200 overflow-hidden shadow-sm">
+            <div id="operational-networks" className="bg-white p-1 rounded-2xl sm:rounded-[2rem] border border-gray-200 overflow-hidden shadow-sm scroll-mt-28">
               <div className="p-4 sm:p-7 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl sm:rounded-t-[2rem]">
                 <h2 className="text-lg sm:text-xl font-extrabold text-gray-900">Operational Networks</h2>
                 <span className="bg-blue-50 border border-blue-100 text-blue-600 text-[10px] sm:text-xs font-black px-2 sm:px-3 py-1 rounded-full">{lots.length} active</span>
@@ -285,7 +346,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Occupancy Heatmap */}
-        <div className="bg-white p-5 sm:p-7 rounded-2xl sm:rounded-[2rem] border border-gray-200 mb-8 sm:mb-10 shadow-sm">
+        <div id="live-occupancy-heatmap" className="bg-white p-5 sm:p-7 rounded-2xl sm:rounded-[2rem] border border-gray-200 mb-8 sm:mb-10 shadow-sm scroll-mt-28">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 sm:mb-6">
             <div>
               <h2 className="text-lg sm:text-xl font-extrabold text-gray-900">Live Occupancy Heatmap</h2>
@@ -332,7 +393,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Master Transaction Log */}
-        <div className="bg-white p-1 rounded-2xl sm:rounded-[2rem] border border-gray-200 overflow-hidden mb-10 shadow-sm">
+        <div id="master-audit-log" className="bg-white p-1 rounded-2xl sm:rounded-[2rem] border border-gray-200 overflow-hidden mb-10 shadow-sm scroll-mt-28">
           <div className="p-4 sm:p-7 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl sm:rounded-t-[2rem]">
             <h2 className="text-lg sm:text-xl font-extrabold text-gray-900">Master Audit Log</h2>
             <span className="bg-purple-50 border border-purple-100 text-purple-600 text-[10px] sm:text-xs font-black px-2 sm:px-3 py-1 rounded-full">{transactions.length} records</span>

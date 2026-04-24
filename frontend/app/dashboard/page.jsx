@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
+import jsPDF from 'jspdf';
 
 export default function UserDashboard() {
   // --- Data States ---
@@ -30,6 +31,7 @@ export default function UserDashboard() {
   // --- UI Feedback States ---
   const [feedback, setFeedback] = useState({ open: false, message: '', type: 'info' });
   const [paymentToast, setPaymentToast] = useState({ open: false, message: '' });
+  const [latestReceipt, setLatestReceipt] = useState(null);
 
   const router = useRouter();
 
@@ -185,12 +187,13 @@ export default function UserDashboard() {
         order_id: orderRes.data.id,      
         handler: async function (response) {
           try {
-            await axios.put(`http://localhost:3001/api/user/checkout-confirm/${reserve_id}`, {
+            const confirmRes = await axios.put(`http://localhost:3001/api/user/checkout-confirm/${reserve_id}`, {
               payment_id: response.razorpay_payment_id,
               amount: total_amt 
             });
+            setLatestReceipt(confirmRes.data?.receipt || null);
             setPaymentToast({ open: true, message: `Payment Successful! ID: ${response.razorpay_payment_id}` });
-            setTimeout(() => setPaymentToast({ open: false, message: '' }), 4000);
+            setTimeout(() => setPaymentToast({ open: false, message: '' }), 15000);
             fetchLots();
             fetchUserBookings(JSON.parse(localStorage.getItem('user')).user_id);
           } catch (err) {
@@ -213,6 +216,89 @@ export default function UserDashboard() {
     return matchesSearch && (showShadedOnly ? lot.is_shaded : true);
   });
 
+  const formatDuration = (minutes) => {
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hrs > 0 && mins > 0) return `${hrs} Hour${hrs > 1 ? 's' : ''} ${mins} Minute${mins > 1 ? 's' : ''}`;
+    if (hrs > 0) return `${hrs} Hour${hrs > 1 ? 's' : ''}`;
+    return `${mins} Minute${mins > 1 ? 's' : ''}`;
+  };
+
+  const handleDownloadReceipt = () => {
+    if (!latestReceipt) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    const addSectionTitle = (title) => {
+      doc.setFontSize(13);
+      doc.setTextColor(30, 64, 175);
+      doc.text(title, 14, y);
+      y += 7;
+      doc.setTextColor(17, 24, 39);
+      doc.setDrawColor(219, 234, 254);
+      doc.line(14, y - 2, pageWidth - 14, y - 2);
+      y += 3;
+    };
+
+    const addField = (label, value) => {
+      doc.setFontSize(10);
+      doc.setTextColor(75, 85, 99);
+      doc.text(`${label}:`, 14, y);
+      doc.setTextColor(17, 24, 39);
+      doc.text(String(value ?? '-'), 65, y);
+      y += 6;
+    };
+
+    doc.setFontSize(20);
+    doc.setTextColor(30, 64, 175);
+    doc.text(latestReceipt.company.name, 14, y);
+    y += 7;
+    doc.setFontSize(10);
+    doc.setTextColor(75, 85, 99);
+    doc.text(latestReceipt.company.tagline, 14, y);
+    y += 8;
+
+    addSectionTitle('Header Information');
+    addField('Receipt Number', latestReceipt.receiptNumber);
+    addField('Date of Issue', new Date(latestReceipt.issuedAt).toLocaleString('en-IN'));
+    addField('Support Contact', `${latestReceipt.company.supportEmail} | ${latestReceipt.company.helpline}`);
+
+    y += 2;
+    addSectionTitle('Parking Details');
+    addField('Location Name', latestReceipt.parkingDetails.locationName);
+    addField('Spot Number', latestReceipt.parkingDetails.spotNumber);
+    addField('Vehicle Number', latestReceipt.parkingDetails.vehicleNumber);
+    addField('Reservation ID', latestReceipt.parkingDetails.reservationId);
+
+    y += 2;
+    addSectionTitle('Time Log');
+    addField('Entry Time', new Date(latestReceipt.timeLog.entryTime).toLocaleString('en-IN'));
+    addField('Exit Time', new Date(latestReceipt.timeLog.exitTime).toLocaleString('en-IN'));
+    addField('Total Duration', formatDuration(latestReceipt.timeLog.totalDurationMinutes));
+
+    y += 2;
+    addSectionTitle('Billing Breakdown');
+    addField('Rate per Hour', `INR ${latestReceipt.billing.ratePerHour}`);
+    addField('Subtotal', `INR ${latestReceipt.billing.subtotal}`);
+    addField('GST', `${latestReceipt.billing.gstPercent}% (INR ${latestReceipt.billing.gstAmount})`);
+    addField('Total Amount', `INR ${latestReceipt.billing.totalAmount}`);
+    addField('Payment Method', latestReceipt.billing.paymentMethod);
+    addField('Transaction ID', latestReceipt.billing.transactionId);
+
+    y += 6;
+    doc.setFontSize(11);
+    doc.setTextColor(22, 101, 52);
+    doc.text(latestReceipt.footer.thankYouNote, 14, y);
+    y += 6;
+    doc.setFontSize(9);
+    doc.setTextColor(107, 114, 128);
+    doc.text(latestReceipt.footer.disclaimer, 14, y);
+
+    doc.save(`${latestReceipt.receiptNumber}.pdf`);
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] text-gray-900 pb-20 relative font-sans">
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-300/20 blur-[120px] rounded-full pointer-events-none"></div>
@@ -220,8 +306,27 @@ export default function UserDashboard() {
       {/* Payment Toast */}
       {paymentToast.open && (
         <div className="fixed top-4 right-4 z-[70] bg-white border border-green-200 shadow-2xl rounded-2xl p-4 border-l-4 border-l-green-500 animate-in slide-in-from-right duration-300">
-          <p className="text-xs font-bold text-green-700 uppercase">Success</p>
-          <p className="text-sm font-semibold text-gray-800">{paymentToast.message}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-green-700 uppercase">Success</p>
+              <p className="text-sm font-semibold text-gray-800">{paymentToast.message}</p>
+            </div>
+            <button
+              onClick={() => setPaymentToast({ open: false, message: '' })}
+              className="text-gray-400 hover:text-gray-700 text-sm font-bold leading-none"
+              aria-label="Close notification"
+            >
+              x
+            </button>
+          </div>
+          {latestReceipt && (
+            <button
+              onClick={handleDownloadReceipt}
+              className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              Download Receipt (PDF)
+            </button>
+          )}
         </div>
       )}
       
@@ -250,7 +355,14 @@ export default function UserDashboard() {
                 <div key={booking.reserve_id} className="bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-[2rem] p-8 flex flex-col md:flex-row justify-between items-center shadow-xl">
                   <div>
                     <p className="text-blue-200 text-xs font-bold uppercase tracking-widest">Vehicle: {booking.vehicle_num}</p>
-                    <h3 className="text-4xl font-black mt-1">Spot #{booking.spot_id}</h3>
+                    <h3 className="text-2xl sm:text-3xl font-black mt-1">{booking.prime_loc}</h3>
+                    <p className="text-blue-100 text-sm sm:text-base font-bold mt-1">Spot: P-{booking.spot_id}</p>
+                    <p className="text-blue-200 text-xs sm:text-sm font-medium mt-1">
+                      Date: {new Date(booking.start_time).toLocaleDateString('en-GB')}
+                    </p>
+                    <p className="text-blue-200 text-xs sm:text-sm font-medium mt-0.5">
+                      Time: {new Date(booking.start_time).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                    </p>
                   </div>
                   <button onClick={() => handleCheckout(booking.reserve_id)} className="mt-4 md:mt-0 bg-white text-blue-700 px-10 py-4 rounded-2xl font-black hover:scale-105 transition-transform">CHECKOUT & PAY</button>
                 </div>
