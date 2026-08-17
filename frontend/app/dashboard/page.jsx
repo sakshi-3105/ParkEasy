@@ -224,6 +224,24 @@ export default function UserDashboard() {
     return `${mins} Minute${mins > 1 ? 's' : ''}`;
   };
 
+  const formatSessionDate = (timestamp) => (
+    new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    }).format(new Date(timestamp))
+  );
+
+  const formatSessionTime = (timestamp) => (
+    new Intl.DateTimeFormat('en-IN', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    }).format(new Date(timestamp))
+  );
+
   const handleDownloadReceipt = () => {
     if (!latestReceipt) return;
 
@@ -358,10 +376,10 @@ export default function UserDashboard() {
                     <h3 className="text-2xl sm:text-3xl font-black mt-1">{booking.prime_loc}</h3>
                     <p className="text-blue-100 text-sm sm:text-base font-bold mt-1">Spot: P-{booking.spot_id}</p>
                     <p className="text-blue-200 text-xs sm:text-sm font-medium mt-1">
-                      Date: {new Date(booking.start_time).toLocaleDateString('en-GB')}
+                      Date: {formatSessionDate(booking.start_time)}
                     </p>
                     <p className="text-blue-200 text-xs sm:text-sm font-medium mt-0.5">
-                      Time: {new Date(booking.start_time).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                      Time: {formatSessionTime(booking.start_time)}
                     </p>
                   </div>
                   <button onClick={() => handleCheckout(booking.reserve_id)} className="mt-4 md:mt-0 bg-white text-blue-700 px-10 py-4 rounded-2xl font-black hover:scale-105 transition-transform">CHECKOUT & PAY</button>

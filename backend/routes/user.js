@@ -114,7 +114,7 @@ router.put('/checkout-confirm/:reserve_id', async (req, res) => {
     await client.query("UPDATE spots SET status = 'a' WHERE spot_id = $1", [spotId]);
     
     // 2. End the reservation
-    await client.query("UPDATE reservations SET end_time = NOW(), is_ongoing = false WHERE reserve_id = $1", [reserve_id]);
+    await client.query("UPDATE reservations SET end_time = (NOW() AT TIME ZONE 'Asia/Kolkata'), is_ongoing = false WHERE reserve_id = $1", [reserve_id]);
     
     // 3. Record the payment for Admin Dashboard
     // Handle slight schema variations across setups.
@@ -235,7 +235,7 @@ router.post('/book', async (req, res) => {
     const lotInfo = await client.query("SELECT price_per_hr FROM lots WHERE lot_id = $1", [lot_id]);
     
     await client.query(
-      "INSERT INTO reservations (lot_id, spot_id, user_id, vehicle_num, price_per_hr) VALUES ($1, $2, $3, $4, $5)",
+      "INSERT INTO reservations (lot_id, spot_id, user_id, vehicle_num, price_per_hr, start_time) VALUES ($1, $2, $3, $4, $5, (NOW() AT TIME ZONE 'Asia/Kolkata'))",
       [lot_id, spot_id, user_id, vehicle_num, lotInfo.rows[0].price_per_hr]
     );
 
